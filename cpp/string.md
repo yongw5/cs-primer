@@ -1,4 +1,4 @@
-## 定义 <array>
+## 定义 <string>
 ```
 template <
     class CharT,
