@@ -3,6 +3,7 @@
 1. [C++ 基础](./cpp/README.md)
 1. [C++ STL 分析](./cpp-stl/README.md)
 1. [LevelDB 源码剖析](./leveldb/README.md)
+1. [Linux 虚拟文件系统](./linux/vfs/README.md)
 1. [select、poll 和 epoll 源码剖析](./linux/epoll/README.md)
 1. [自旋锁实现](./linux/spinlock/spinlock.md)
 1. [SLAB 分配器设计与实现](./linux/slab/README.md)
