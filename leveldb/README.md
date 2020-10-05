@@ -1,7 +1,7 @@
 LevelDB 源码剖析
-1. [原理](./原理.md)
-1. [磁盘文件布局](./磁盘文件布局.md)
-1. [内存布局](./内存布局.md)
+1. [原理](./lsm-tree.md)
+1. [磁盘文件布局](./disk-layout.md)
+1. [内存布局](./memory-layout.md)
 1. [Key](./key.md)
 1. [Cache](./cache.md)
 1. [MemTable](./memtable.md)
