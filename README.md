@@ -2,6 +2,7 @@
 1. [C 基础](./c/README.md)
 1. [C++ 基础](./cpp/README.md)
 1. [C++ STL 分析](./cpp-stl/README.md)
+1. [设计模式](./dp/README.md)
 1. [LevelDB 源码剖析](./leveldb/README.md)
 1. [Linux 虚拟文件系统](./linux/vfs/README.md)
 1. [select、poll 和 epoll 源码剖析](./linux/epoll/README.md)
