@@ -2,6 +2,7 @@
 1. [C 基础](./c/README.md)
 1. [C++ 基础](./cpp/README.md)
 1. [C++ STL 分析](./cpp-stl/README.md)
+1. [数据结构与算法](./algo/README.md)
 1. [设计模式](./dp/README.md)
 1. [TCP/IP 网络基础](./tcp-ip/README.md)
 1. [进程间通信](./ipc/README.md)
