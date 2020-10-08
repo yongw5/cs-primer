@@ -8,6 +8,7 @@
 1. [进程间通信](./ipc/README.md)
 1. [UNIX网络编程--套接字联网](./socket/README.md)
 1. [LevelDB 源码剖析](./leveldb/README.md)
+1. [Redis 设计与实现](./redis/README.md)
 1. [SLAB 分配器设计与实现](./linux/slab/README.md)
 1. [Linux 虚拟文件系统](./linux/vfs/README.md)
 1. [Linux 网络栈实现之 TCP](./linux/socket/README.md)
