@@ -9,6 +9,8 @@ Redis6.0.0 设计与实现
 1. [文件事件之 acceptTcpHandler()](./acceptTcpHandler.md)
 1. [文件事件之 connSocketEventHandler()](./connSocketEventHandler.md)
 1. [命令处理 processCommand()](./processCommand.md)
+1. [哈希表 dict 设计与实现](./dict.md)
+1. [redisObject 初探](./redisObject-basic.md)
 1. [redisDb 数据库实现](./redisDb.md)
 1. [RDB 持久化](./.md)(TODO)
 1. [AOF 持久化](./.md)(TODO)
