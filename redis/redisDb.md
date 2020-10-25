@@ -187,3 +187,25 @@ size_t lazyfreeGetFreeEffort(robj *obj) {
     }
 }
 ```
+
+## lookupKey()
+```
+// db.c
+robj *lookupKey(redisDb *db, robj *key, int flags) {
+    dictEntry *de = dictFind(db->dict,key->ptr);
+    if (de) {
+        robj *val = dictGetVal(de);
+        
+        if (!hasActiveChildProcess() && !(flags & LOOKUP_NOTOUCH)){
+            if (server.maxmemory_policy & MAXMEMORY_FLAG_LFU) {
+                updateLFU(val);
+            } else {
+                val->lru = LRU_CLOCK();
+            }
+        }
+        return val;
+    } else {
+        return NULL;
+    }
+}
+```
