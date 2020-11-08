@@ -1,9 +1,10 @@
 Redis6.0.0 设计与实现
 1. [Redis 服务器启动](./redis-server-start.md)
 1. [redisServer & client & connection 数据结构](./redisServer.md)
-1. [redisCommand 命令表](./redisCommand.md)
+1. [redisCommand & standardConfig 数据结构](./redisComand-standardConfig.md)
+1. [initServerConfig() 函数实现](./initServerConfig.md)
 1. [initServer() 函数实现](./initServer.md)
-1. [InitServerLast() 函数实现](./.md)(TODO)
+1. [InitServerLast() 函数实现](./InitServerLast.md)
 1. [aeFileEvent & aeTimeEvent](./event.md)
 1. [aeMain() 函数实现](./aeMain.md)
 1. [时间事件 severCron()](./time-event-severCron.md)

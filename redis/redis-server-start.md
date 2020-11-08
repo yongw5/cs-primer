@@ -5,17 +5,15 @@ redis-server --port 9999
 ```
 或者通过传递配置文件
 ```
-server-server redis.conf
+redis-server redis.conf
 ```
-来启动服务器进程
-
-## Redis 初始化
+来启动服务器进程，redis-server 定义如下
 ```
 // server.c
 int main(int argc, char **argv) {
     struct timeval tv;
     int j;
-/* ... */ /* 是否启用 Sentinel */
+/* ... */ /* 是否 Sentinel */
     server.sentinel_mode = checkForSentinelMode(argc,argv);
     initServerConfig(); /* 设置默认值 */
 /* ... */
