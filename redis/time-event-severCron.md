@@ -168,7 +168,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
         if (server.cluster_enabled) clusterCron();
     }
 
-/* 处理 Cluster 相关，比如心跳检测等 */
+/* 处理 Sentinel 相关 */
     if (server.sentinel_mode) sentinelTimer();
 
 /* 处理过期的 MIGRATE 缓存 */

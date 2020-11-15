@@ -25,8 +25,7 @@ int main(int argc, char **argv) {
     for (j = 0; j < argc; j++) server.exec_argv[j] = zstrdup(argv[j]);
 /* ... */ /* 初始化 Sentinel */
     if (server.sentinel_mode) {
-        initSentinelConfig();
-        initSentinel();
+/* ... Sentinel 模式执行 ... */
     }
 /* ... */ /* 检查是否需要从 RDB 或者 AOF 文件恢复 */
     if (strstr(argv[0],"redis-check-rdb") != NULL)
@@ -80,11 +79,38 @@ int main(int argc, char **argv) {
     redisAsciiArt();
     checkTcpBacklogSettings();
 
-    if (!server.sentinel_mode) {
-/* ... */
-    } else {
+    if (!server.sentinel_mode) { /* 普通 Redis 服务器 */
+        /* Things not needed when running in Sentinel mode. */
+        serverLog(LL_WARNING,"Server initialized");
+    #ifdef __linux__
+        linuxMemoryWarnings();
+    #endif
+        moduleLoadFromQueue();
+        ACLLoadUsersAtStartup();
         InitServerLast();
-        sentinelIsRunning();
+        loadDataFromDisk();
+        if (server.cluster_enabled) {
+            if (verifyClusterConfigWithData() == C_ERR) {
+                serverLog(LL_WARNING,
+                    "You can't have keys in a DB different than DB 0 when in "
+                    "Cluster mode. Exiting.");
+                exit(1);
+            }
+        }
+        if (server.ipfd_count > 0 || server.tlsfd_count > 0)
+            serverLog(LL_NOTICE,"Ready to accept connections");
+        if (server.sofd > 0)
+            serverLog(LL_NOTICE,"The server is now ready to accept connections at %s", server.unixsocket);
+        if (server.supervised_mode == SUPERVISED_SYSTEMD) {
+            if (!server.masterhost) {
+                redisCommunicateSystemd("STATUS=Ready to accept connections\n");
+                redisCommunicateSystemd("READY=1\n");
+            } else {
+                redisCommunicateSystemd("STATUS=Waiting for MASTER <-> REPLICA sync\n");
+            }
+        }
+    } else {
+/* ... Sentinel 模式执行 ... */
     }
 /* ... */
     aeSetBeforeSleepProc(server.el,beforeSleep);
