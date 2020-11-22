@@ -317,11 +317,11 @@ void loadServerConfigFromString(char *config) {
         } else if (!strcasecmp(argv[0],"sentinel")) {
             /* argc == 1 is handled by main() as we need to enter the sentinel
              * mode ASAP. */
-            if (argc != 1) {
+            if (argc != 1) { /* 加载 Sentinel 配置文件 */
                 if (!server.sentinel_mode) {
                     err = "sentinel directive while not in sentinel mode";
                     goto loaderr;
-                }
+                } 
                 err = sentinelHandleConfiguration(argv+1,argc-1);
                 if (err) goto loaderr;
             }

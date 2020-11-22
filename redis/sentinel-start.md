@@ -1,11 +1,13 @@
 ## 再探 server.c:main()
-Sentinel 本质上是一个运行在特殊模式下的 Redis 服务器，启动 Sentinel 和初始化普通 Redis 服务器相似，只有细微的差别。Sentinel 启动时，执行如下步骤：
-1. 初始化服务器
-2. 将普通 Redis 服务器使用的代码替换成 Sentinel 专用代码
-3. 初始化 Sentinel 状态
-4. 加载给定的配置文件，初始化 Sentinel 监视列表
-5. 创建连向主服务的网络连接
+Sentinel 本质上是一个运行在特殊模式下的 Redis 服务器，启动 Sentinel 和初始化普通 Redis 服务器相似，只有细微的差别，具体如下：
+1. 在 initServerConfig() 函数后，调用 initSentinelConfig() 和 initSentinel() 函数
+    - 将 server.port 替换为 REDIS_SENTINEL_PORT
+    - 将命令列表 server.commands 改变为 Sentinel 实现
+    - 初始化 Sentinel 状态
+1. 在 loadServerConfig() 函数中，加载 Sentinel 配置文件
+1. 在 initServer() 函数后，相继执行 InitServerLast() 和 sentinelIsRunning() 函数。
 
+除此之外，Sentinel 和普通 Redis 服务器启动相同，不过在时间处理函数 severCron() 中，Sentinel 和普通 Redis 服务器有较大的差别。如果是 Sentinel 模式，会执行 sentinelTimer() 函数。
 ```
 // server.c
 int main(int argc, char **argv) {
@@ -89,8 +91,18 @@ int main(int argc, char **argv) {
 }
 ```
 
-## sentinelState
-sentinelState 保存了服务器中所有和 Sentinel 功能有关的状态，在 Sentinel 启动是初始化。
+## initSentinelConfig()
+initSentinelConfig() 设置 Sentinel 的端口值
+```
+// sentinel.c
+void initSentinelConfig(void) {
+    server.port = REDIS_SENTINEL_PORT;
+    server.protected_mode = 0; /* Sentinel must be exposed. */
+}
+```
+
+## initSentinel()
+Sentinel 用 sentinelState 结构记录运行过程中的相关状态，其定义如下：
 ```
 // sentinel.c
 struct sentinelState {
@@ -115,16 +127,7 @@ struct sentinelState {
 ```
 masters 字典保存了所有被 Sentinel 监视的主服务器的相关信息，其中 Key 是被监视的主服务器的名字，Value 是表征被监视主服务器的 sentinelRedisInstance 变量。
 
-## initSentinel()
-在 [Redis 服务器启动](./redis-server-start.md) 中，如果是 sentinel_mode 将执行 initSentinelConfig() 和 initSentinel() 两个函数。其中 initSentinelConfig() 设置 Sentinel 的端口值
-```
-// sentinel.c
-void initSentinelConfig(void) {
-    server.port = REDIS_SENTINEL_PORT;
-    server.protected_mode = 0; /* Sentinel must be exposed. */
-}
-```
-而 initSentinel() 函数主要创建 Sentinel 命令表和初始化 sentinelState 状态。
+启动时，sentinelState 在 initSentinel() 函数中被初始化。另外，initSentinel() 函数还负责将 server.commands 替换为 Sentinel 相关的命令实现。
 ```
 // sentinel.c
 void initSentinel(void) {

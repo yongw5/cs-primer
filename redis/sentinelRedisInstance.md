@@ -72,7 +72,7 @@ typedef struct sentinelRedisInstance {
 } sentinelRedisInstance;
 ```
 
-## instanceLink
+## instanceLink(TODO)
 指向sentinelRedisInstance的链接。 当我们有一组监视多个主机的Sentinels时，我们有代表同一Sentinels的不同实例，每个主机一个，并且我们需要共享它们之间的hiredis连接。 如果5个哨兵正在监视100个主机，那么我们将创建500个传出连接，而不是5个。
 
 因此，此结构用两个命令和Pub / Sub的hiredis连接以及故障检测所需的字段来表示参考计数链接，因为ping / pong时间现在是该链接的本地地址：如果该链接可用，则 实例是avaialbe。 这样，我们不仅有5个连接而不是500个连接，我们还发送了5个ping而不是500个ping。
@@ -131,7 +131,8 @@ createSentinelRedisInstance() 函数用于创建一个 sentinelRedisInstance 实
 如果 hostname 解析失败或者 port 超出范围，createSentinelRedisInstance() 函数调用失败，返回 NULL。另外，如果主服务器的名字重复，从服务器地址重复，或者 Sentinel 的 ID 重复，该函数也会返回 NULL。
 ```
 // sentinel.c
-sentinelRedisInstance *createSentinelRedisInstance(char *name, int flags, char *hostname, int port, int quorum, sentinelRedisInstance *master) {
+sentinelRedisInstance *createSentinelRedisInstance(char *name, int flags, 
+        char *hostname, int port, int quorum, sentinelRedisInstance *master) {
     sentinelRedisInstance *ri;
     sentinelAddr *addr;
     dict *table = NULL;

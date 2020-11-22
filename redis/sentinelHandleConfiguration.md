@@ -1,6 +1,7 @@
 ## sentinelHandleConfiguration()
-在 loadServerConfigFromString() 函数中，如果是 Sentinel 的配置，将调用 sentinelHandleConfiguration() 函数进行处理，该函数定义如下
+在 [initServerConfig() & loadServerConfig() 函数实现](./initServerConfig.md) 我们了解到，在 loadServerConfigFromString() 函数中，如果是 Sentinel 模式，将调用 sentinelHandleConfiguration() 函数进行处理，该函数定义如下
 ```
+// sentinel.c
 char *sentinelHandleConfiguration(char **argv, int argc) {
     sentinelRedisInstance *ri;
 

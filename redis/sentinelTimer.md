@@ -1,5 +1,5 @@
 ## sentinelTimer()
-在 Redis 服务器时间事件处理函数 [severCron()](./time-event-severCron.md)中，如果是 Sentinel 模式，额外会调用 sentinelTimer() 函数
+在 Redis 服务器时间事件处理函数 [severCron()](./time-event-severCron.md)中，如果是 Sentinel 模式，会调用 sentinelTimer() 函数
 ```
 // server.c
 int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
@@ -8,7 +8,11 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
 /* ... */
 }
 ```
-sentinelTimer() 函数处理 Sentinel 相关的时间事件，其定义如下：
+sentinelTimer() 函数处理 Sentinel 相关的时间事件，定期处理如下事宜：
+1. 调用 sentinelCheckTiltCondition() 函数，检查是否应该进入 TITL 模式；
+2. 调用 sentinelHandleDictOfRedisInstances() 函数，进行监视或者故障检测；
+3. 处理脚本
+
 ```
 // sentinel.c
 void sentinelTimer(void) {
@@ -17,20 +21,10 @@ void sentinelTimer(void) {
     sentinelRunPendingScripts();
     sentinelCollectTerminatedScripts();
     sentinelKillTimedoutScripts();
-
-    /* We continuously change the frequency of the Redis "timer interrupt"
-     * in order to desynchronize every Sentinel from every other.
-     * This non-determinism avoids that Sentinels started at the same time
-     * exactly continue to stay synchronized asking to be voted at the
-     * same time again and again (resulting in nobody likely winning the
-     * election because of split brain voting). */
     server.hz = CONFIG_DEFAULT_HZ + rand() % CONFIG_DEFAULT_HZ;
 }
 ```
-从定义中可以看出，sentinelTimer() 函数定时处理如下事宜：
-1. 调用 sentinelCheckTiltCondition() 函数，检查是否应该进入 TITL 模式；
-2. 调用 sentinelHandleDictOfRedisInstances() 函数，处理 sentinel.masters 字典中的所有实例；
-3. 处理脚本
+另外，每次调用 sentinelTimer() 函数都会更改 server.hz 的值，以使每个 Sentinel 之间彼此不同步。这种非确定性避免了 Sentinel 在同一时间开始正是继续保持同步要求被同时连连投票（结果是没有人会赢得因为脑裂投票选举）。
 
 ## sentinelCheckTiltCondition()
 此函数检查是否需要进入 TITL 模式。如果检测到两次定时器中断之间的时间间隔为负或时间过长，则进入 TILT 模式。请注意，如果一切正常，我们预计将经过大约 100 毫秒。 但是，如果发生以下情况之一，我们将看到一个负数或一个大于 SENTINEL_TILT_TRIGGER 毫秒的差：
@@ -53,8 +47,36 @@ void sentinelCheckTiltCondition(void) {
 }
 ```
 
-## sentinelRunPendingScripts()
+## sentinelHandleDictOfRedisInstances()
+sentinelHandleDictOfRedisInstances() 将逐一处理 instances 中的 sentinelRedisInstance 实例。如果是 SRI_MASTER，将递归调用，处理 ri->slaves 和 ri->sentinels 实例。如果 salve 或者 sentinel 中 failover_state 处于 SENTINEL_FAILOVER_STATE_UPDATE_CONFIG，将触发调用 sentinelFailoverSwitchToPromotedSlave() 函数。
+```
+// sentinel.c
+void sentinelHandleDictOfRedisInstances(dict *instances) {
+    dictIterator *di;
+    dictEntry *de;
+    sentinelRedisInstance *switch_to_promoted = NULL;
 
+    /* There are a number of things we need to perform against every master. */
+    di = dictGetIterator(instances);
+    while((de = dictNext(di)) != NULL) {
+        sentinelRedisInstance *ri = dictGetVal(de);
+
+        sentinelHandleRedisInstance(ri);
+        if (ri->flags & SRI_MASTER) {
+            sentinelHandleDictOfRedisInstances(ri->slaves);
+            sentinelHandleDictOfRedisInstances(ri->sentinels);
+            if (ri->failover_state == SENTINEL_FAILOVER_STATE_UPDATE_CONFIG) {
+                switch_to_promoted = ri;
+            }
+        }
+    }
+    if (switch_to_promoted)
+        sentinelFailoverSwitchToPromotedSlave(switch_to_promoted);
+    dictReleaseIterator(di);
+}
+```
+
+## sentinelRunPendingScripts()
 ```
 /* Run pending scripts if we are not already at max number of running
  * scripts. */
