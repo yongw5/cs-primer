@@ -1,5 +1,5 @@
 ## sentinelHandleRedisInstance()
-sentinelHandleRedisInstance() 函数主要由两部分组成：监控和故障转移。
+sentinelHandleRedisInstance() 函数上半部是监控相关操作。
 ```
 // sentinel.c
 void sentinelHandleRedisInstance(sentinelRedisInstance *ri) {
@@ -12,14 +12,12 @@ void sentinelHandleRedisInstance(sentinelRedisInstance *ri) {
 /* ... */
 }
 ```
-其中监控部分，主要执行 sentinelReconnectInstance() 和 sentinelSendPeriodicCommands() 两个函数。sentinelReconnectInstance() 函数实现将在下节介绍，而 
+其中监控部分，主要执行 sentinelReconnectInstance() 和 sentinelSendPeriodicCommands() 两个函数。
 
 ## sentinelReconnectInstance()
-sentinelReconnectInstance() 函数做两件事情：一是遍历所有 sentinelRedisInstance，如果 
+sentinelReconnectInstance() 函数做两件事情：（1）如果当前 Sentinel 和 sentinelRedisInstance 还未建立连接或者连接已断开建立，则和 sentinelRedisInstance 的异步连接，并在成功建立连接后发送 PING 命令；（2）如果参数 sentinelRedisInstance 是主服务器或者从服务器，则订阅其 sentinel_hello 频道，当这个频道上有消息更新，则会广播所有订阅的该频道的客户端。
 ```
-/* Create the async connections for the instance link if the link
- * is disconnected. Note that link->disconnected is true even if just
- * one of the two links (commands and pub/sub) is missing. */
+// sentinel.c
 void sentinelReconnectInstance(sentinelRedisInstance *ri) {
     if (ri->link->disconnected == 0) return;
     if (ri->addr->port == 0) return; /* port == 0 means invalid address. */
@@ -167,3 +165,25 @@ void sentinelSendPeriodicCommands(sentinelRedisInstance *ri) {
 }
 ```
 
+## sentinelSendPing()
+sentinelSendPing() 用于向 sentinelRedisInstance 发送 PING 命令，并且更新 last\_ping\_time 和 act\_ping\_time 的值。
+```
+// sentinel.c
+int sentinelSendPing(sentinelRedisInstance *ri) {
+    int retval = redisAsyncCommand(ri->link->cc,
+        sentinelPingReplyCallback, ri, "%s",
+        sentinelInstanceMapCommand(ri,"PING"));
+    if (retval == C_OK) {
+        ri->link->pending_commands++;
+        ri->link->last_ping_time = mstime();
+        /* We update the active ping time only if we received the pong for
+         * the previous ping, otherwise we are technically waiting since the
+         * first ping that did not receive a reply. */
+        if (ri->link->act_ping_time == 0)
+            ri->link->act_ping_time = ri->link->last_ping_time;
+        return 1;
+    } else {
+        return 0;
+    }
+}
+```

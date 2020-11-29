@@ -1,5 +1,5 @@
 ## sentinelHandleRedisInstance()
-sentinelHandleRedisInstance() 函数主要由两部分组成：监控和故障转移。
+sentinelHandleRedisInstance() 函数下半部主要是故障转移。
 ```
 // sentinel.c
 void sentinelHandleRedisInstance(sentinelRedisInstance *ri) {
@@ -33,11 +33,11 @@ void sentinelHandleRedisInstance(sentinelRedisInstance *ri) {
     }
 }
 ```
-其中监控部分，主要执行 sentinelReconnectInstance() 和 sentinelSendPeriodicCommands() 两个函数。sentinelReconnectInstance() 函数实现将在下节介绍，而 sentinelSendPeriodicCommands() 主要是向主服务器或者从服务器发送 PING、INFO 和 PUBLISH 命令，了解他们的主从关系，其定义如下：
 
 ## sentinelCheckSubjectivelyDown()
+sentinelCheckSubjectivelyDown() 用于检查某个 sentinelRedisInstance 是否主观下线。
 ```
-/* Is this instance down from our point of view? */
+// sentinel.c
 void sentinelCheckSubjectivelyDown(sentinelRedisInstance *ri) {
     mstime_t elapsed = 0;
 
@@ -103,13 +103,12 @@ void sentinelCheckSubjectivelyDown(sentinelRedisInstance *ri) {
         }
     }
 }
+```
 
-/* Is this instance down according to the configured quorum?
- *
- * Note that ODOWN is a weak quorum, it only means that enough Sentinels
- * reported in a given time range that the instance was not reachable.
- * However messages can be delayed so there are no strong guarantees about
- * N instances agreeing at the same time about the down state. */
+## sentinelCheckObjectivelyDown()
+sentinelCheckObjectivelyDown() 用于判断某个 sentinelRedisInstance 是否主观下线。sentinelCheckObjectivelyDown() 会统计多少 Sentinel 将当前 sentinelRedisInstance 设置为 SRI\_MASTER\_DOWN，如果大于 master->quorum，就将其设置为客观下线。
+```
+// sentinel.c
 void sentinelCheckObjectivelyDown(sentinelRedisInstance *master) {
     dictIterator *di;
     dictEntry *de;
@@ -143,5 +142,60 @@ void sentinelCheckObjectivelyDown(sentinelRedisInstance *master) {
             master->flags &= ~SRI_O_DOWN;
         }
     }
+}
+```
+
+## sentinelStartFailoverIfNeeded()
+此时，推举结果还未知，sentinelStartFailoverIfNeeded() 用于检查是否满足开始故障转移的条件：
+1. 主服务处于客观下线；
+1. 没有其他 Sentinel 正在进行故障转移；
+1. 最近没有尝试进行故障转移；
+
+```
+// sentinel.c
+int sentinelStartFailoverIfNeeded(sentinelRedisInstance *master) {
+    /* We can't failover if the master is not in O_DOWN state. */
+    if (!(master->flags & SRI_O_DOWN)) return 0;
+
+    /* Failover already in progress? */
+    if (master->flags & SRI_FAILOVER_IN_PROGRESS) return 0;
+
+    /* Last failover attempt started too little time ago? */
+    if (mstime() - master->failover_start_time <
+        master->failover_timeout*2)
+    {
+        if (master->failover_delay_logged != master->failover_start_time) {
+            time_t clock = (master->failover_start_time +
+                            master->failover_timeout*2) / 1000;
+            char ctimebuf[26];
+
+            ctime_r(&clock,ctimebuf);
+            ctimebuf[24] = '\0'; /* Remove newline. */
+            master->failover_delay_logged = master->failover_start_time;
+            serverLog(LL_WARNING,
+                "Next failover delay: I will not start a failover before %s",
+                ctimebuf);
+        }
+        return 0;
+    }
+
+    sentinelStartFailover(master);
+    return 1;
+}
+```
+如果上述条件满足，执行 sentinelStartFailover() 函数，将主服务的状态设置为 SENTINEL\_FAILOVER\_STATE\_WAIT\_START，准备进行故障转移。
+```
+// sentinel.c
+void sentinelStartFailover(sentinelRedisInstance *master) {
+    serverAssert(master->flags & SRI_MASTER);
+
+    master->failover_state = SENTINEL_FAILOVER_STATE_WAIT_START;
+    master->flags |= SRI_FAILOVER_IN_PROGRESS;
+    master->failover_epoch = ++sentinel.current_epoch;
+    sentinelEvent(LL_WARNING,"+new-epoch",master,"%llu",
+        (unsigned long long) sentinel.current_epoch);
+    sentinelEvent(LL_WARNING,"+try-failover",master,"%@");
+    master->failover_start_time = mstime()+rand()%SENTINEL_MAX_DESYNC;
+    master->failover_state_change_time = mstime();
 }
 ```
