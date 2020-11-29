@@ -1,5 +1,5 @@
 ## sentinelHandleRedisInstance()
-sentinelHandleRedisInstance() 函数下半部主要是故障转移。
+sentinelHandleRedisInstance() 函数下半部首先进行故障检测。
 ```
 // sentinel.c
 void sentinelHandleRedisInstance(sentinelRedisInstance *ri) {
@@ -184,6 +184,15 @@ int sentinelStartFailoverIfNeeded(sentinelRedisInstance *master) {
 }
 ```
 如果上述条件满足，执行 sentinelStartFailover() 函数，将主服务的状态设置为 SENTINEL\_FAILOVER\_STATE\_WAIT\_START，准备进行故障转移。
+
+如果Sentinel通过三重检查，进入了sentinelStartFailover，相当于成为了Candidate，它会做以下几件事情：
+
+1、把failover_state改成SENTINEL_FAILOVER_STATE_WAIT_START。
+2、把master的状态改成故障转移中SRI_FAILOVER_IN_PROGRESS。
+3、增加master的current_epoch，并赋值给failover_epoch。
+4、把failover_start_time改成mstime()+rand()%SENTINEL_MAX_DESYNC。
+5、把failover_state_change_time改成mstime()。
+
 ```
 // sentinel.c
 void sentinelStartFailover(sentinelRedisInstance *master) {

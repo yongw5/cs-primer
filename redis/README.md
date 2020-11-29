@@ -34,7 +34,6 @@ Redis6.0.0 设计与实现
 1. [sentinelHandleRedisInstance() 之故障检测](./sentinelHandleRedisInstance-acting.md)
 1. [sentinelHandleRedisInstance() 之故障转移](./sentinelHandleRedisInstance-acting2.md)
 1. [sentinelFailoverStateMachine() 实现](./sentinelFailoverStateMachine-impl.md)
-1. [Sentinel 容错](./.md)(TODO)
 1. [集群](./.md)(TODO)
 1. [](./.md)
 1. [](./.md)

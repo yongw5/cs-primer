@@ -1,3 +1,38 @@
+## sentinelFailoverStateMachine()
+sentinelFailoverStateMachine 故障转移包括五个步骤，需要 5 个 sentinelTimer 执行周期。
+1. 统计选票，查看是否成为leader
+1. 从slave列表中选出最佳slave
+1. 把选出的slave设置为master
+1. 等待升级生效，如果升级超时，那么重新选择新主服务器
+1. 向从服务器发送 SLAVEOF 命令，让它们同步新主服务器
+
+```
+// sentinel.c
+void sentinelFailoverStateMachine(sentinelRedisInstance *ri) {
+    serverAssert(ri->flags & SRI_MASTER);
+
+    if (!(ri->flags & SRI_FAILOVER_IN_PROGRESS)) return;
+
+    switch(ri->failover_state) {
+        case SENTINEL_FAILOVER_STATE_WAIT_START:
+            sentinelFailoverWaitStart(ri);  // (1)
+            break;
+        case SENTINEL_FAILOVER_STATE_SELECT_SLAVE:
+            sentinelFailoverSelectSlave(ri);  // (2)
+            break;
+        case SENTINEL_FAILOVER_STATE_SEND_SLAVEOF_NOONE:
+            sentinelFailoverSendSlaveOfNoOne(ri); // (3)
+            break;
+        case SENTINEL_FAILOVER_STATE_WAIT_PROMOTION:
+            sentinelFailoverWaitPromotion(ri); // (4)
+            break;
+        case SENTINEL_FAILOVER_STATE_RECONF_SLAVES:
+            sentinelFailoverReconfNextSlave(ri); // (5)
+            break;
+    }
+}
+```
+
 ## sentinelFailoverWaitStart()
 ```
 /* ---------------- Failover state machine implementation ------------------- */
