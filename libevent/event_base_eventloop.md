@@ -234,3 +234,98 @@ event_base_loopcontinue(struct event_base *event_base)
     return r;
 }
 ```
+
+## evthread_make_base_notifiable()
+evthread_make_base_notifiable() 函数用于设置异步唤醒相关配置，其直接调用 evthread_make_base_notifiable_nolock_() 函数。
+```
+int
+evthread_make_base_notifiable(struct event_base *base)
+{
+    int r;
+    if (!base)
+        return -1;
+
+    EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+    r = evthread_make_base_notifiable_nolock_(base);
+    EVBASE_RELEASE_LOCK(base, th_base_lock);
+    return r;
+}
+```
+evthread_make_base_notifiable_nolock_() 函数定义如下，如果平台支持 eventfd，则优先使用，否则使用 pipe。
+```
+static int
+evthread_make_base_notifiable_nolock_(struct event_base *base)
+{
+    void (*cb)(evutil_socket_t, short, void *);
+    int (*notify)(struct event_base *);
+
+    if (base->th_notify_fn != NULL) { // 已经设置
+        return 0;
+    }
+
+#if defined(EVENT__HAVE_WORKING_KQUEUE)
+    // ...
+#endif
+
+#ifdef EVENT__HAVE_EVENTFD
+    base->th_notify_fd[0] =
+        evutil_eventfd_(0, EVUTIL_EFD_CLOEXEC | EVUTIL_EFD_NONBLOCK);
+    if (base->th_notify_fd[0] >= 0) {
+        base->th_notify_fd[1] = -1;
+        notify = evthread_notify_base_eventfd; // 唤醒
+        cb = evthread_notify_drain_eventfd;    // 回调
+    } else
+#endif
+        if (evutil_make_internal_pipe_(base->th_notify_fd) == 0) {
+        notify = evthread_notify_base_default; // 唤醒
+        cb = evthread_notify_drain_default;    // 回调
+    } else {
+        return -1;
+    }
+
+    base->th_notify_fn = notify;
+
+    // 添加用于异步唤醒的 event
+    event_assign(&base->th_notify, base, base->th_notify_fd[0],
+        EV_READ | EV_PERSIST, cb, base);
+
+    /* we need to mark this as internal event */
+    base->th_notify.ev_flags |= EVLIST_INTERNAL;
+    event_priority_set(&base->th_notify, 0);
+
+    return event_add_nolock_(&base->th_notify, NULL, 0);
+}
+```
+### evthread_notify_base_eventfd()
+evthread_notify_base_eventfd() 函数向 th_notify_fd[0] 一个 64 位的数值 1，使得 th_notify_fd[0] 可读。
+
+```
+evthread_notify_base_eventfd(struct event_base *base)
+{
+    ev_uint64_t msg = 1;
+    int r;
+    do {
+        r = write(base->th_notify_fd[0], (void *)&msg, sizeof(msg));
+    } while (r < 0 && errno == EAGAIN);
+
+    return (r < 0) ? -1 : 0;
+}
+```
+### evthread_notify_drain_eventfd()
+当 th_notify 成为 ACTIVE，回调函数 evthread_notify_drain_eventfd() 从 th_notify_fd[0] 读取数据。
+```
+evthread_notify_drain_eventfd(evutil_socket_t fd, short what, void *arg)
+{
+    ev_uint64_t msg;
+    ev_ssize_t r;
+    struct event_base *base = arg;
+
+    r = read(fd, (void *)&msg, sizeof(msg));
+    if (r < 0 && errno != EAGAIN) {
+        event_sock_warn(fd, "Error reading from eventfd");
+    }
+    EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+    base->is_notify_pending = 0;
+    EVBASE_RELEASE_LOCK(base, th_base_lock);
+}
+```
