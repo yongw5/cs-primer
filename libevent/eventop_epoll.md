@@ -1,5 +1,6 @@
-# event_base 后端 eventop 之 epoll
+# eventop 之 epoll
 ## epollop
+epollop 结构封装了 epoll，主要包括注册的 epoll_event 以及 epfd。
 ```
 struct epollop {
     struct epoll_event *events;
@@ -10,7 +11,9 @@ struct epollop {
 #endif
 };
 ```
+
 ## epollops
+epollops 是 eventop 类型的变量，定义了 epoll 的接口。
 ```
 /// epoll.c
 const struct eventop epollops = {
@@ -338,7 +341,7 @@ epoll_apply_one_change(struct event_base *base,
     return -1;
 }
 ```
-## epoll_apply_changes()
+epoll_apply_changes() 直接调用 epoll_apply_one_change() 函数。
 ```
 static int
 epoll_apply_changes(struct event_base *base)
