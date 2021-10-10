@@ -1,6 +1,6 @@
 # event 庐山真面目
 
-## struct event
+## event 定义
 event 的定义对外可见，但是一般不直接使用。以下是 event 的完整定义：
 ```
 // event_struct.h

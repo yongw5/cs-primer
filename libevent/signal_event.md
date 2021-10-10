@@ -12,19 +12,19 @@ libevent 将 signal 事件转换为 io 事件处理，将 signal 和 io 事件�
 #define evsignal_assign(event, base, signum, callback, arg) \
     event_assign(event, base, signum, EV_SIGNAL|EV_PERSIST, callback, arg)
 ```
-大体上，当信号发生时，信号处理函数向 pipe 写入数据。此时监听 pipe 可读的 event 变成 ACTIVE 状态，其回调函数从 pipe 中读取数据，然后处理。
+其原理是：当信号发生时，信号处理函数向 pipe 写入数据。此时监听 pipe 可读的 event 变成 ACTIVE 状态，其回调函数从 pipe 中读取数据，然后处理。这样就将 signal 事件转换为 io 事件。
 
 ## evsig_info
 ```
 typedef void (*ev_sighandler_t)(int);
 
 struct evsig_info {
-    struct event ev_signal;    // 关注 ev_signal_pair[1] 可读
+    struct event ev_signal;    // 关注 ev_signal_pair[1] 可读事件
     evutil_socket_t ev_signal_pair[2];
     int ev_signal_added;       // 是否已经 PENDING
     int ev_n_signals_added;
 #ifdef EVENT__HAVE_SIGACTION
-    struct sigaction **sh_old; // 缓存替代的 sigaction
+    struct sigaction **sh_old; // 缓存替代的 sigaction，用于还原
 #else
     // ...
 #endif
