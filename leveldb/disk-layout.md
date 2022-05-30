@@ -5,7 +5,7 @@ LevelDB 使用如下文件保存数据库数据
 |:-|:-|:-|
 |xxxxxx.log|操作日志（WAL），记录增删改操作|为了防止丢失数据，在增删改数据时，LevelDB 总是先在 .log 文件中写入操作过程，然后再在内存 MemTable 中进行增删改。|
 |######.ldb|LevelDB 存储 Key-Value 的文件|早期版本是 .sst 文件，从 1.14 版本以后改为 .ldb 文件|
-|MANIFEST-******|.ldb 文件的索引表，记录每个 .ldb 文件 Key 的范围|
+|MANIFEST-******|序列化 VersionEdit|
 |CURRENT|当前使用的 MANIFEST-****** 文件|
 |LOCK|文件锁|多线程并发|
 |LOG|日志文件，简要记录 LevelDB 操作|查看 LevelDB 执行过程，用于 Debug|
@@ -66,3 +66,5 @@ MetaIndexBlock 存储必要的统计信息，目前只存储 MetaBlock 偏移和
 MANIFEST 文件存储了 LevelDB 版本间的变更信息。LevelDB 使用 Version 表示数据库的一个版本，Version 记录了每个 Level 上 .ldb 的文件。Version 的变更信息使用 VersionEdit 表示，MANIFEST 存储的是 VersionEdit 变量序列号字符，存储方式和 .log 文件一样。每次调用  VersionEdit 的 EncodeTo() 函数其内容序列化为字符串，序列化后格式如下（存储时连续存储）：
 
 <img src='./imgs/manifest-format.png'>
+
+可见 [Version 之 VersionEdit](./verionedit.md) 参考 VersionEdit 序列号过程。
