@@ -15,7 +15,7 @@ LevelDB 使用如下文件保存数据库数据
 
 <img src='./imgs/log-batch-op-info.png'>
 
-头 12 字节为头部，Sequence 表示全局递增序号，而 Count 表示该 Batch 中 Key-Value 数量。Sequence 递增值跟 Count 有关，下一个 Record 序号从 Sequence + Count 开始。每个 Key-Value 中 ValueType 表示 Key-Value 类型，是 kTypeDeletion 和 kValueType 的一种。前者表示删除，此时 value 为空，后者表示添加或者修改。
+头 12 字节为头部，Sequence 表示全局递增序号，而 Count 表示该 Batch 中 Key-Value 数量。Sequence 递增值跟 Count 有关，下一个 Record 序号从 Sequence + Count 开始。每个 Key-Value 中 ValueType 表示 Key-Value 类型，是 kTypeDeletion 和 kTypeValue 的一种。前者表示删除，此时 value 为空，后者表示添加或者修改。
 
 LevelDB 并不是简单地将 Batch-Op-Info 写入 .log 文件，而是将其组成一个记录（Record）按照 Block 为单位存储，每个 Block 为 32 KB 大小。每个 Record 组织如下：
 
@@ -56,7 +56,7 @@ Block 在 Payload 尾部记录重启点数据，每个重启点的偏移（相�
 由于 DataBlock 大小并不是固定值，因此需要将每个 DataBlock 在 .ldb 文件中的位置偏移以及大小进行记录，以界定不同 DataBlock。此外，为了方便查找，LevelDB 还为 DataBlock 添加索引。每个 DataBlock 的索引 index_key 都满足：（1）本 DataBlock 所有 Key 都小于等于 index_key；（2）下一个 DataBlock 所有 Key 都大于 index_key。而且 index_key 并不是简单地将一个 DataBlock 的最后一个 Key 当作索引，为了减少空间占用，会在两个 DataBlock 间选取一个可以区分且最短字符串当作 index_key。在存储时，将 index_key 当作 Key、DataBlock 的偏移和大小信息当作 Value 存储在 DataIndexBlock 的 Payload中，存储方式和 DataBlock 完全一样，也采用前缀压缩和设置重启点。
 
 MetaBlock 是可选项，在 Options 可以指定类型或者为空，当前可以指定 Filter 加速 Key-Value 查找。Filter(i) 存放偏移在
-[i * base, (i+1) * base) 区间中所有 DataBlock 的 Key 生成的数据。由此可见，data_block 并不是和 filter 一一对应，一个 filter 可能包含多个 data_block 的数据。
+[i * base, (i+1) * base) 区间中所有 DataBlock 的 Key 生成的数据（base 默认 2K）。由此可见，data_block 并不是和 filter 一一对应，一个 filter 可能包含多个 data_block 的数据。
 
 MetaIndexBlock 存储必要的统计信息，目前只存储 MetaBlock 偏移和大小相关的数据。Key 为 filter.<Name>，其中 Name 由指定 Filter 的 Name() 函数返回。Value 存储 MetaBlock 大小和偏移。
 
